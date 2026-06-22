@@ -8,6 +8,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+         mavenLocal() 
         google()
         maven {
             url = uri("https://repo.danubetech.com/repository/maven-public/")

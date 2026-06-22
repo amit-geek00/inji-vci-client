@@ -48,6 +48,33 @@ class InteractiveAuthorizationHandlerTest {
     val mockPresentationInteractionResponse =
         """ { "status": "require_interaction", "type": "openid4vp_presentation", "auth_session": "mock-auth-session", "openid4vp_request": { "issuer": "https://example.org", "credential_type": "example-vc", "response_type": "vp_token", "response_mode": "iar-post", "nonce": "n-0S6_WzA2Mj", "presentation_definition": { "id": "pd-id", "input_descriptors": [ { "id": "id-1", "schema": [ { "uri": "https://example.org/schema" } ], "constraints": { "fields": [ { "path": ["$.credentialSubject.age"], "filter": { "type": "number", "minimum": 18 } } ] } } ] } } } """.trimIndent()
 
+        val mockPresentationInteractionResponseNewType =
+    """{
+        "status": "require_interaction",
+        "type": "urn:openid:dcp:iae:openid4vp_presentation",
+        "auth_session": "mock-auth-session",
+        "openid4vp_request": {
+            "issuer": "https://example.org",
+            "credential_type": "example-vc",
+            "response_type": "vp_token",
+            "response_mode": "iar-post",
+            "nonce": "n-0S6_WzA2Mj",
+            "presentation_definition": {
+                "id": "pd-id",
+                "input_descriptors": [
+                    {
+                        "id": "id-1",
+                        "schema": [
+                            {
+                                "uri": "https://example.org/schema"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }""".trimIndent()
+
     @Before
     fun setup() {
         handler = InteractiveAuthorizationHandler()
@@ -101,6 +128,48 @@ class InteractiveAuthorizationHandlerTest {
 
         assertEquals(expectedAuthResponse, result)
     }
+    
+    @Test
+fun `should handle urn OpenID4VP presentation interaction successfully`() = runTest {
+    val responseBody = mockPresentationInteractionResponseNewType
+
+    mockkStatic(Base64::class)
+    every { Base64.encodeToString(any<ByteArray>(), any()) } returns "b64"
+
+    every {
+        NetworkManager.sendRequest(
+            url = endpoint,
+            method = HttpMethod.POST,
+            bodyParams = any(),
+            headers = any()
+        )
+    } returns NetworkResponse(responseBody, null)
+
+    val expectedAuthResponse = mockk<AuthorizationResponse>()
+
+    val presentationMethod = AuthorizationMethod.PresentationDuringIssuance(
+        selectCredentialsForPresentation = mockk(relaxed = true),
+        signVerifiablePresentation = mockk(relaxed = true),
+    )
+
+    mockkConstructor(PresentationDuringIssuanceAuthorizationMethodService::class)
+
+    coEvery {
+        anyConstructed<PresentationDuringIssuanceAuthorizationMethodService>()
+            .authorizeUser(any<PresentationDuringIssuanceRequestData>())
+    } returns expectedAuthResponse
+
+    val result = handler.handle(
+        endpoint = endpoint,
+        clientMetadata = clientMetadata,
+        credentialConfigurationId = credentialConfigId,
+        authorizationMethods = listOf(presentationMethod),
+        pkceSession = pkceSession,
+        traceabilityId = "demo"
+    )
+
+    assertEquals(expectedAuthResponse, result)
+}
 
 
     @Test

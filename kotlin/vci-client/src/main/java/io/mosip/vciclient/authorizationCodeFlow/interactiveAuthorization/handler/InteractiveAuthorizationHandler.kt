@@ -61,7 +61,8 @@ class InteractiveAuthorizationHandler {
             }
 
             when (val type = extractTypeAndThrowIfError(response.body)) {
-                InteractionType.OpenId4VpPresentation.value ->
+                InteractionType.OpenId4VpPresentation.value,
+                "urn:openid:dcp:iae:openid4vp_presentation" ->
                     handlePresentationInteraction(
                         response.body,
                         authorizationMethods,

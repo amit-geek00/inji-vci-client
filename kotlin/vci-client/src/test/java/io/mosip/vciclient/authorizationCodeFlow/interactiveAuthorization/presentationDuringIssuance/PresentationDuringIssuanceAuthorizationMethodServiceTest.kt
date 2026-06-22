@@ -157,6 +157,44 @@ class PresentationDuringIssuanceAuthorizationMethodServiceTest {
     }
 
     @Test
+fun `should delegate request uri validation and accept iae post jwt mode`() = runTest {
+    val requestByReference = mapOf(
+        "request_uri" to "https://verifier.example.com/request/123"
+    )
+
+    val normalizedRequest = authorizationRequest(
+        responseMode = "iae_post.jwt"
+    )
+
+    coEvery {
+        mockOvp.authenticateVerifier(requestByReference)
+    } returns normalizedRequest
+
+    var selectedRequest: AuthorizationRequest? = null
+
+    val handler = PresentationDuringIssuanceAuthorizationMethodService(
+        selectCredentialsForPresentation = {
+            selectedRequest = it
+            emptyMap()
+        },
+        signVerifiablePresentation = { emptyList() },
+        openid4vpWalletConfig = WalletConfig(),
+        traceabilityId = "test-trace-id",
+        openId4vp = mockOvp,
+    )
+
+    handler.authorizeUser(
+        validRequest().copy(ovpRequest = requestByReference)
+    )
+
+    coVerify(exactly = 1) {
+        mockOvp.authenticateVerifier(requestByReference)
+    }
+
+    Assert.assertSame(normalizedRequest, selectedRequest)
+}
+
+    @Test
     fun `should successfully authorize and return success response`() = runTest {
         coEvery { mockOvp.constructUnsignedVPToken(any()) } returns listOf(
             UnsignedVPToken(FormatType.LDP_VC, "k1","ES256", "unsigned".toByteArray())
@@ -240,11 +278,16 @@ class PresentationDuringIssuanceAuthorizationMethodServiceTest {
         handler.authorizeUser(validRequest())
 
         verify(exactly = 1) {
-            mockOvp.constructErrorInfo(
-                match { it.message == "response_mode must be 'iar-post' or 'iar-post.jwt'" }
-            )
+    mockOvp.constructErrorInfo(
+        match {
+            it.message == "response_mode must be one of: iar-post, iar-post.jwt, iae_post, iae_post.jwt"
         }
-        coVerify(exactly = 0) { mockOvp.constructUnsignedVPToken(any()) }
+    )
+}
+
+coVerify(exactly = 0) {
+    mockOvp.constructUnsignedVPToken(any())
+}
     }
     
     @Test
@@ -270,41 +313,41 @@ class PresentationDuringIssuanceAuthorizationMethodServiceTest {
             handler.authorizeUser(validRequest())
         }
     }
+    
+   @Test
+fun `should throw when issuer response deserialization fails`() = runTest {
+    every { NetworkManager.sendRequest(any(), any(), any(), any()) } returns
+        NetworkResponse("""{"not":"a-valid-AuthorizationResponse"}""", null)
 
-    @Test
-    fun `should throw when issuer response deserialization fails`() = runTest {
-        every { NetworkManager.sendRequest(any(), any(), any(), any()) } returns
-                NetworkResponse(""""not":"a-valid-AuthorizationResponse" }""", null)
-
-        val handler = PresentationDuringIssuanceAuthorizationMethodService(
-            selectCredentialsForPresentation = { validCredentialMap() },
-            signVerifiablePresentation = { emptyList() },
-            openid4vpWalletConfig = WalletConfig(),
-            traceabilityId = "test-trace-id",
-            openId4vp = mockOvp,
-        )
-
-        assertThrows<InteractiveAuthorizationException> {
-            handler.authorizeUser(validRequest())
-        }
-    }
-
-    private fun authorizationRequest(
-        responseType: String = "vp_token",
-        responseMode: String? = "iar-post"
-    ) = AuthorizationPresentationExchangeRequest(
-        clientId = "https://trusted.com",
-        redirectUri = "",
-        responseType = responseType,
-        state = "",
-        nonce = "",
-        responseMode = responseMode,
-        responseUri = null,
-        walletNonce = "",
-        clientMetadata = null,
-        presentationDefinition = PresentationDefinition(
-            id = "pd-id",
-            inputDescriptors = emptyList()
-        )
+    val handler = PresentationDuringIssuanceAuthorizationMethodService(
+        selectCredentialsForPresentation = { validCredentialMap() },
+        signVerifiablePresentation = { emptyList() },
+        openid4vpWalletConfig = WalletConfig(),
+        traceabilityId = "test-trace-id",
+        openId4vp = mockOvp,
     )
+
+    assertThrows<InteractiveAuthorizationException> {
+        handler.authorizeUser(validRequest())
+    }
+}
+
+private fun authorizationRequest(
+    responseType: String = "vp_token",
+    responseMode: String? = "iar-post"
+) = AuthorizationPresentationExchangeRequest(
+    clientId = "https://trusted.com",
+    redirectUri = "",
+    responseType = responseType,
+    state = "",
+    nonce = "",
+    responseMode = responseMode,
+    responseUri = null,
+    walletNonce = "",
+    clientMetadata = null,
+    presentationDefinition = PresentationDefinition(
+        id = "pd-id",
+        inputDescriptors = emptyList()
+    )
+)
 }

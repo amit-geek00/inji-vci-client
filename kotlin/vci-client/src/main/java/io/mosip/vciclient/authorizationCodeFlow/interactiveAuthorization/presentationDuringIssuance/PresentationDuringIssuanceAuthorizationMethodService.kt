@@ -105,14 +105,24 @@ class PresentationDuringIssuanceAuthorizationMethodService : AuthorizationMethod
 
     }
 
+private fun validatePresentationRequest(request: Map<String, Any>): AuthorizationRequest {
+    val authorizationRequest = openId4vp.authenticateVerifier(request)
 
-    private fun validatePresentationRequest(request: Map<String, Any>): AuthorizationRequest {
-        val authorizationRequest = openId4vp.authenticateVerifier(request)
-        if (authorizationRequest.responseMode !in listOf("iar-post", "iar-post.jwt")) {
-            throw IllegalArgumentException("response_mode must be 'iar-post' or 'iar-post.jwt'")
-        }
-        return authorizationRequest
+    if (
+        authorizationRequest.responseMode !in listOf(
+            "iar-post",
+            "iar-post.jwt",
+            "iae_post",
+            "iae_post.jwt"
+        )
+    ) {
+        throw IllegalArgumentException(
+            "response_mode must be one of: iar-post, iar-post.jwt, iae_post, iae_post.jwt"
+        )
     }
+
+    return authorizationRequest
+}
 
     private suspend fun handlePresentation(vpRequest: AuthorizationRequest): Map<String, Any> {
         val selectedCredentials = selectCredentialsForPresentation(vpRequest)
@@ -172,8 +182,24 @@ class PresentationDuringIssuanceAuthorizationMethodService : AuthorizationMethod
             )
         }
 
-        return JsonUtils.deserialize(networkResponse.body, AuthorizationResponse::class.java)
-            ?: throw InteractiveAuthorizationException("Issuer response deserialization failed")
+        val response = JsonUtils.deserialize(
+    networkResponse.body,
+    AuthorizationResponse::class.java
+) ?: throw InteractiveAuthorizationException(
+    "Issuer response deserialization failed"
+)
+
+if (
+    response.authorizationCode == null &&
+    response.status == null &&
+    response.error == null
+) {
+    throw InteractiveAuthorizationException(
+        "Issuer response deserialization failed"
+    )
+}
+
+return response
     }
 }
 

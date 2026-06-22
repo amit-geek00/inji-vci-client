@@ -277,7 +277,10 @@ internal class AuthorizationCodeFlowService(
     ): String {
         val interactiveEndpoint = authorizationServerMetadata.interactiveAuthorizationEndpoint
 
-        return if (interactiveEndpoint != null) {
+        val useInteractiveAuthorization =
+    authorizationServerMetadata.requireInteractiveAuthorizationRequest == true ||
+            interactiveEndpoint != null 
+return if (useInteractiveAuthorization && interactiveEndpoint != null) {
             try {
                 obtainAuthorizationCodeViaInteractiveAuthorizationEndpoint(
                     endpoint = interactiveEndpoint,

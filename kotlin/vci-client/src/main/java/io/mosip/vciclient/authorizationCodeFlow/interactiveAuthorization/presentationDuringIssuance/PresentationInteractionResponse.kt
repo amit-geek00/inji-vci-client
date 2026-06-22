@@ -16,9 +16,16 @@ data class PresentationInteractionResponse(
 
     override fun validate() {
 
-        if (type != "openid4vp_presentation") {
-            throw IllegalArgumentException("Invalid type: expected 'openid4vp_presentation'")
-        }
+    if (
+    type !in listOf(
+        "openid4vp_presentation",
+        "urn:openid:dcp:iae:openid4vp_presentation"
+    )
+) {
+    throw IllegalArgumentException(
+        "Invalid type: expected supported OpenID4VP presentation type"
+    )
+}
 
         if (openid4vpRequest.isEmpty()) {
             throw IllegalArgumentException("openid4vpRequest must not be empty")
