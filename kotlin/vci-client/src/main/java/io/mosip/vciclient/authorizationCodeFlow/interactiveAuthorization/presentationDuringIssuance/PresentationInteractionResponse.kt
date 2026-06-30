@@ -14,10 +14,21 @@ data class PresentationInteractionResponse(
     val openid4vpRequest: Map<String, Any>
 ) : InteractionResponse(status, type, authSession) {
 
+     private companion object {
+        const val DCP_OPENID4VP_PRESENTATION =
+           "urn:openid:dcp:iae:openid4vp_presentation"
+    }
+
     override fun validate() {
 
-        if (type != "openid4vp_presentation") {
-            throw IllegalArgumentException("Invalid type: expected 'openid4vp_presentation'")
+     
+        if (
+            type != "openid4vp_presentation" &&
+            type != DCP_OPENID4VP_PRESENTATION
+        ) {
+            throw IllegalArgumentException(
+                "Invalid type: expected 'openid4vp_presentation' or '$DCP_OPENID4VP_PRESENTATION'"
+            )
         }
 
         if (openid4vpRequest.isEmpty()) {
