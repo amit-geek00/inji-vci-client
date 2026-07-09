@@ -290,6 +290,7 @@ class AuthorizationCodeFlowServiceTest {
             every { authorizationEndpoint } returns "https://auth.example.com"
             every { interactiveAuthorizationEndpoint } returns "https://auth.example.com/interactive"
             every { tokenEndpoint } returns "https://token.example.com"
+            every { requireInteractiveAuthorizationRequest } returns false
         }
 
         val mockHandler = mockkClass(InteractiveAuthorizationHandler::class)
