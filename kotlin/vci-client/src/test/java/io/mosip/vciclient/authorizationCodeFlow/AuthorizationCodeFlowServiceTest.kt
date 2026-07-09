@@ -91,7 +91,6 @@ class AuthorizationCodeFlowServiceTest {
             every { interactiveAuthorizationEndpoint } returns null
              every { requireInteractiveAuthorizationRequest } returns false
         }
-
         every {
             AuthorizationUrlBuilder.build(
                 any(),
@@ -156,8 +155,6 @@ class AuthorizationCodeFlowServiceTest {
 
             assertEquals(mockCredentialResponse, result)
         }
-
-
     @Test
     fun `should throw when token service fails`() {
         runBlocking {

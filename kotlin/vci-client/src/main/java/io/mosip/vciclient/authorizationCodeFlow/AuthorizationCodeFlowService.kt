@@ -420,7 +420,6 @@ return if (useInteractiveAuthorization && interactiveEndpoint != null) {
             )
         }
     }
-
     private suspend fun resolveNonce(
         issuerMetadata: IssuerMetadata,
         timeoutInMillis: Long,
