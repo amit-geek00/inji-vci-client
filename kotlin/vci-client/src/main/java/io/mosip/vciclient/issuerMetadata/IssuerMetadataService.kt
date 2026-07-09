@@ -9,6 +9,7 @@ import io.mosip.vciclient.networkManager.HttpMethod
 import io.mosip.vciclient.networkManager.NetworkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.net.URI
 
 private const val CREDENTIAL_ISSUER_WELL_KNOWN_URI_SUFFIX = "/.well-known/openid-credential-issuer"
 
@@ -48,8 +49,8 @@ class IssuerMetadataService {
         } catch (e: VCIClientException) {
             throw IssuerMetadataFetchException(
                 e.message,
-                serverErrorCode = e.serverErrorCode,
-                serverErrorDescription = e.serverErrorDescription,
+                issuerErrorCode = e.issuerErrorCode,
+                issuerErrorDescription = e.issuerErrorDescription,
                 cause = e
             )
         } catch (e: Exception) {
@@ -87,9 +88,29 @@ class IssuerMetadataService {
         return configurations as Map<String, Any>
     }
 
-    suspend fun fetchAndParseIssuerMetadata(credentialIssuer: String): Map<String, Any> = withContext(Dispatchers.IO) {
-        val wellKnownUrl = "$credentialIssuer$CREDENTIAL_ISSUER_WELL_KNOWN_URI_SUFFIX"
+    suspend fun fetchAndParseIssuerMetadata(credentialIssuer: String): Map<String, Any> =
+        withContext(Dispatchers.IO) {
+            val wellKnownUrl: String
+            val draft13WellKnownUrl: String
+            try {
+                wellKnownUrl = buildWellKnownUrl(credentialIssuer)
+                draft13WellKnownUrl = buildDraft13WellKnownUrl(credentialIssuer)
+            } catch (e: Exception) {
+                throw IssuerMetadataFetchException(
+                    "Invalid credential issuer URL: $credentialIssuer",
+                    cause = e
+                )
+            }
 
+            try {
+                fetchAndParse(wellKnownUrl)
+            } catch (error: IssuerMetadataFetchException) {
+                if (draft13WellKnownUrl == wellKnownUrl) throw error
+                fetchAndParse(draft13WellKnownUrl)
+            }
+        }
+
+    private fun fetchAndParse(wellKnownUrl: String): Map<String, Any> {
         try {
             val response = NetworkManager.sendRequest(
                 url = wellKnownUrl,
@@ -101,15 +122,14 @@ class IssuerMetadataService {
             if (body.isBlank()) {
                 throw IssuerMetadataFetchException("Issuer metadata response is empty.")
             }
-
-            return@withContext JsonUtils.toMap(body)
+            return JsonUtils.toMap(body)
         } catch (e: IssuerMetadataFetchException) {
             throw e
         } catch (e: VCIClientException) {
             throw IssuerMetadataFetchException(
                 e.message,
-                serverErrorCode = e.serverErrorCode,
-                serverErrorDescription = e.serverErrorDescription,
+                issuerErrorCode = e.issuerErrorCode,
+                issuerErrorDescription = e.issuerErrorDescription,
                 cause = e
             )
         } catch (e: Exception) {
@@ -118,6 +138,17 @@ class IssuerMetadataService {
                 cause = e
             )
         }
+    }
+
+    private fun buildWellKnownUrl(credentialIssuer: String): String {
+        val uri = URI(credentialIssuer)
+        val path = uri.path?.trimEnd('/').orEmpty()
+        return "${uri.scheme}://${uri.authority}$CREDENTIAL_ISSUER_WELL_KNOWN_URI_SUFFIX$path"
+    }
+
+    private fun buildDraft13WellKnownUrl(credentialIssuer: String): String {
+        val normalizedIssuer = credentialIssuer.trimEnd('/')
+        return "$normalizedIssuer$CREDENTIAL_ISSUER_WELL_KNOWN_URI_SUFFIX"
     }
 
     private fun validateCredentialIssuerMatch(
@@ -190,24 +221,6 @@ class IssuerMetadataService {
                     credentialType = types,
                     context = context,
                     credentialFormat = CredentialFormat.LDP_VC,
-                    authorizationServers = rawIssuerMetadata["authorization_servers"] as? List<String>,
-                    scope = scope,
-                    nonceEndpoint = nonceEndpoint,
-                    specVersion = specVersion
-                )
-            }
-
-            CredentialFormat.JWT_VC_JSON.value -> {
-                val credentialDefinition =
-                    credentialType["credential_definition"] as? Map<*, *> ?: emptyMap<String, Any>()
-                val types = credentialDefinition["type"] as? List<String>
-
-                IssuerMetadata(
-                    credentialIssuer = credentialIssuer,
-                    credentialEndpoint = credentialEndpoint,
-                    credentialType = types,
-                    context = null,
-                    credentialFormat = CredentialFormat.JWT_VC_JSON,
                     authorizationServers = rawIssuerMetadata["authorization_servers"] as? List<String>,
                     scope = scope,
                     nonceEndpoint = nonceEndpoint,

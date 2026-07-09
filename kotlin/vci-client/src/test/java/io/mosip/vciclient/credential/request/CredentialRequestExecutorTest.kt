@@ -74,7 +74,7 @@ class CredentialRequestExecutorTest {
         )
 
         val response = CredentialRequestExecutor().requestCredential(
-            issuerMetadata = resolvedMeta.copy(credentialFormat = CredentialFormat.JWT_VC_JSON),
+            issuerMetadata = resolvedMeta.copy(credentialFormat = CredentialFormat.LDP_VC),
             credentialConfigurationId = "SampleCredential",
             proofs = CredentialRequestProofs(proofs = listOf("proof-1")),
             accessToken = accessToken
@@ -102,7 +102,7 @@ class CredentialRequestExecutorTest {
         mockWebServer.enqueue(MockResponse().setBody("").setResponseCode(200))
 
         val result = CredentialRequestExecutor().requestCredential(
-            issuerMetadata = resolvedMeta.copy(credentialFormat = CredentialFormat.JWT_VC_JSON),
+            issuerMetadata = resolvedMeta.copy(credentialFormat = CredentialFormat.LDP_VC),
             credentialConfigurationId = "SampleCredential",
             proofs = CredentialRequestProofs(proofs = listOf("proof-1")),
             accessToken = accessToken
@@ -122,7 +122,7 @@ class CredentialRequestExecutorTest {
                 resolvedMeta,"SampleCredential", mockProof, accessToken
             )
         }
-        assertTrue(ex.serverErrorDescription?.contains("Bad Request") == true)
+        assertTrue(ex.issuerErrorDescription?.contains("Bad Request") == true)
     }
 
     @Test
@@ -174,7 +174,7 @@ class CredentialRequestExecutorTest {
 
         assertTrue(ex.cause is NetworkRequestFailedException)
         assertTrue(ex.message.contains("HTTP 400"))
-        assertTrue(ex.serverErrorCode == "invalid_proof")
-        assertTrue(ex.serverErrorDescription == "proof is missing")
+        assertTrue(ex.issuerErrorCode == "invalid_proof")
+        assertTrue(ex.issuerErrorDescription == "proof is missing")
     }
 }

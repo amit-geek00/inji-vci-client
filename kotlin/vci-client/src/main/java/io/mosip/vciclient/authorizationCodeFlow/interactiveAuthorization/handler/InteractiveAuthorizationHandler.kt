@@ -95,8 +95,8 @@ return when (val type = extractTypeAndThrowIfError(response.body)) {
             logger.severe("Interactive authorization failed: ${e.message}")
             throw InteractiveAuthorizationException(
                 "Interactive authorization failed: ${e.message}",
-                serverErrorCode = e.serverErrorCode,
-                serverErrorDescription = e.serverErrorDescription,
+                issuerErrorCode = e.issuerErrorCode,
+                issuerErrorDescription = e.issuerErrorDescription,
                 cause = e
             )
         } catch (e: Exception) {
