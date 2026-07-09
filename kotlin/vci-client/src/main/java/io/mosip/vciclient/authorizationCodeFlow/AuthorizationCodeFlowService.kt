@@ -289,8 +289,7 @@ internal class AuthorizationCodeFlowService(
                     traceabilityId = traceabilityId
                 )
             } catch (e: DownloadFailedException) {
-                if (
-    e.serverErrorCode == MISSING_INTERACTION_TYPE_ERROR &&
+                if ( e.issuerErrorCode == MISSING_INTERACTION_TYPE_ERROR &&
     authorizationServerMetadata.requireInteractiveAuthorizationRequest != true
 ) {
     logger.warning(
